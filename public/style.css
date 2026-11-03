@@ -1,0 +1,24 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #46178f; color: #fff; text-align: center; }
+main { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+h1 { margin: 8px 0 16px; }
+.hidden { display: none !important; }
+.card { background: #fff; color: #222; border-radius: 12px; padding: 20px; margin: 16px 0; }
+input, button { font-size: 1.2rem; padding: 12px 16px; border-radius: 8px; border: none; margin: 6px; }
+input { border: 2px solid #ccc; width: 100%; max-width: 320px; }
+button { background: #333; color: #fff; cursor: pointer; font-weight: bold; }
+.error { color: #ffd1d1; font-weight: bold; min-height: 1.4em; }
+.card .error { color: #c00; }
+.pin { font-size: 3.5rem; font-weight: 900; letter-spacing: 6px; }
+.players { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.players span { background: rgba(255,255,255,.2); padding: 6px 12px; border-radius: 6px; }
+.question { font-size: 2rem; font-weight: bold; }
+.timer { font-size: 2.5rem; font-weight: 900; }
+.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.answers button { margin: 0; min-height: 110px; font-size: 1.5rem; }
+.a0 { background: #e21b3c; } .a1 { background: #1368ce; } .a2 { background: #d89e00; } .a3 { background: #26890c; }
+.answers .wrong { opacity: .3; }
+.board { list-style: none; padding: 0; max-width: 480px; margin: 0 auto; }
+.board li { display: flex; justify-content: space-between; background: #fff; color: #222; margin: 6px 0; padding: 10px 16px; border-radius: 8px; font-weight: bold; }
+.big { font-size: 2rem; font-weight: bold; }
+pre { text-align: left; background: #f4f4f4; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: .85rem; }

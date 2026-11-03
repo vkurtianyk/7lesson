@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Join Quiz</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <section id="join">
+    <h1>Join the quiz</h1>
+    <input id="pin" inputmode="numeric" placeholder="Game PIN"><br>
+    <input id="name" maxlength="20" placeholder="Nickname"><br>
+    <button id="joinBtn">Join</button>
+    <p class="error" id="joinError"></p>
+  </section>
+
+  <section id="wait" class="hidden">
+    <h1 id="quizTitle"></h1>
+    <p class="big">You're in, <span id="me"></span>!</p>
+    <p>Wait for the teacher to start…</p>
+  </section>
+
+  <section id="play" class="hidden">
+    <p id="qNum"></p>
+    <p class="question" id="qText"></p>
+    <div class="answers" id="answers"></div>
+  </section>
+
+  <section id="sent" class="hidden"><p class="big">Answer sent! Wait…</p></section>
+
+  <section id="result" class="hidden">
+    <p class="big" id="resText"></p>
+    <p>Total score: <b id="resScore"></b></p>
+  </section>
+
+  <section id="over" class="hidden">
+    <h1>Game over!</h1>
+    <p class="big" id="place"></p>
+  </section>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const $ = (id) => document.getElementById(id);
+  let myName = '';
+
+  function show(id) {
+    document.querySelectorAll('main > section').forEach((s) => s.classList.toggle('hidden', s.id !== id));
+  }
+
+  $('joinBtn').onclick = () => {
+    socket.emit('player:join', { pin: $('pin').value, name: $('name').value }, (res) => {
+      if (res.error) return ($('joinError').textContent = res.error);
+      myName = res.name;
+      $('me').textContent = res.name;
+      $('quizTitle').textContent = res.title;
+      show('wait');
+    });
+  };
+
+  socket.on('question', (q) => {
+    $('qNum').textContent = `Question ${q.index + 1} / ${q.total}`;
+    $('qText').textContent = q.question;
+    $('answers').innerHTML = '';
+    q.answers.forEach((text, i) => {
+      const b = document.createElement('button');
+      b.className = 'a' + i;
+      b.textContent = text;
+      b.onclick = () => { socket.emit('player:answer', i); show('sent'); };
+      $('answers').appendChild(b);
+    });
+    show('play');
+  });
+
+  socket.on('result', (r) => {
+    $('resText').textContent = r.correct ? `Correct! +${r.points}` : 'Not this time!';
+    $('resScore').textContent = r.score;
+    show('result');
+  });
+
+  socket.on('gameover', (board) => {
+    const place = board.findIndex((p) => p.name === myName) + 1;
+    $('place').textContent = `You finished #${place} of ${board.length}`;
+    show('over');
+  });
+
+  socket.on('ended', () => {
+    $('joinError').textContent = 'The teacher ended the game.';
+    show('join');
+  });
+</script>
+</body>
+</html>

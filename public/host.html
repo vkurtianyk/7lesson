@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiz Host</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <section id="load">
+    <h1>Teacher: load a quiz</h1>
+    <div class="card">
+      <input type="file" id="file" accept=".json,application/json">
+      <p class="error" id="loadError"></p>
+      <p>File format (<code>correct</code> is the number of the right answer, counting from 0):</p>
+      <pre>{
+  "title": "Fractions",
+  "questions": [
+    { "question": "1/2 + 1/4 = ?",
+      "answers": ["3/4", "2/6", "1/8", "2/4"],
+      "correct": 0,
+      "time": 20 }
+  ]
+}</pre>
+    </div>
+  </section>
+
+  <section id="lobby" class="hidden">
+    <h1 id="title"></h1>
+    <p>Students open <b id="joinUrl"></b> and enter PIN:</p>
+    <p class="pin" id="pin"></p>
+    <p><span id="count">0</span> players joined</p>
+    <div class="players" id="players"></div>
+    <button id="startBtn">Start</button>
+  </section>
+
+  <section id="question" class="hidden">
+    <p id="qNum"></p>
+    <p class="question" id="qText"></p>
+    <p class="timer" id="timer"></p>
+    <p>Answers: <span id="answered">0</span></p>
+    <div class="answers" id="answers"></div>
+    <button id="skipBtn">Show answer now</button>
+  </section>
+
+  <section id="reveal" class="hidden">
+    <div class="answers" id="revealAnswers"></div>
+    <h1>Leaderboard</h1>
+    <ol class="board" id="board"></ol>
+    <button id="nextBtn">Next</button>
+  </section>
+
+  <section id="over" class="hidden">
+    <h1>Final results</h1>
+    <ol class="board" id="final"></ol>
+    <button onclick="location.reload()">New quiz</button>
+  </section>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const $ = (id) => document.getElementById(id);
+  let current = null;
+  let countdown = null;
+
+  function show(id) {
+    document.querySelectorAll('main > section').forEach((s) => s.classList.toggle('hidden', s.id !== id));
+  }
+
+  function renderBoard(el, board) {
+    el.innerHTML = '';
+    board.forEach((p) => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span></span><span></span>';
+      li.children[0].textContent = p.name;
+      li.children[1].textContent = p.score;
+      el.appendChild(li);
+    });
+  }
+
+  function renderAnswers(el, answers, extra) {
+    el.innerHTML = '';
+    answers.forEach((text, i) => {
+      const b = document.createElement('button');
+      b.className = 'a' + i;
+      b.textContent = extra ? extra(text, i, b) : text;
+      el.appendChild(b);
+    });
+  }
+
+  $('file').onchange = async () => {
+    $('loadError').textContent = '';
+    let quiz;
+    try {
+      quiz = JSON.parse(await $('file').files[0].text());
+    } catch (err) {
+      return ($('loadError').textContent = 'This file is not valid JSON: ' + err.message);
+    }
+    socket.emit('host:create', quiz, (res) => {
+      if (res.error) return ($('loadError').textContent = res.error);
+      $('title').textContent = quiz.title;
+      $('pin').textContent = res.pin;
+      $('joinUrl').textContent = res.joinUrl;
+      show('lobby');
+    });
+  };
+
+  socket.on('players', (names) => {
+    $('count').textContent = names.length;
+    $('players').innerHTML = '';
+    names.forEach((n) => {
+      const s = document.createElement('span');
+      s.textContent = n;
+      $('players').appendChild(s);
+    });
+  });
+
+  $('startBtn').onclick = () => socket.emit('host:next');
+  $('nextBtn').onclick = () => socket.emit('host:next');
+  $('skipBtn').onclick = () => socket.emit('host:skip');
+
+  socket.on('question', (q) => {
+    current = q;
+    $('qNum').textContent = `Question ${q.index + 1} / ${q.total}`;
+    $('qText').textContent = q.question;
+    $('answered').textContent = 0;
+    renderAnswers($('answers'), q.answers);
+    let left = q.time;
+    $('timer').textContent = left;
+    clearInterval(countdown);
+    countdown = setInterval(() => { left = Math.max(0, left - 1); $('timer').textContent = left; }, 1000);
+    show('question');
+  });
+
+  socket.on('answered', (n) => ($('answered').textContent = n));
+
+  socket.on('reveal', (r) => {
+    clearInterval(countdown);
+    renderAnswers($('revealAnswers'), current.answers, (text, i, b) => {
+      if (i !== r.correct) b.classList.add('wrong');
+      return `${i === r.correct ? '✔ ' : ''}${text} (${r.counts[i]})`;
+    });
+    renderBoard($('board'), r.leaderboard.slice(0, 5));
+    $('nextBtn').textContent = r.isLast ? 'Final results' : 'Next question';
+    show('reveal');
+  });
+
+  socket.on('gameover', (board) => {
+    renderBoard($('final'), board);
+    show('over');
+  });
+</script>
+</body>
+</html>
